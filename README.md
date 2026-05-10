@@ -180,6 +180,6 @@ The MAC used in a `PAIR` command is always the **other device's local MAC addres
 ## Release files
 
 - `Gradients_SP_MP_1_0.ino` — firmware sketch
-- `Gradients_v1.0_GitHub_Release.md` — release notes / GitHub release text
+- `README.md` — release notes / GitHub release text
 
 
