@@ -74,7 +74,7 @@ Main includes used by the sketch:
 Upload the same firmware file to both devices:
 
 ```text
-Gradients_SP_MP_1_0_Host_Client_Touch_N_Butts_NVS_Pairing.ino
+Gradients_SP_MP_1_0.ino
 ```
 
 The compile-time role define is now only a fallback:
