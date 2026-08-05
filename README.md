@@ -1,275 +1,254 @@
-# Gradients v1.1
+# Gradients v1.17
 
-Gradients v1.1 is the second release-ready version of the M5Stack multiplayer terrain game. It expands the original ESP-NOW two-device prototype into a more robust no-PC multiplayer workflow with boot-time role selection, deterministic C-button pairing, up to four players, persistent host client slots, battery-aware menu/post-game behavior, buffered terrain-based startup graphics, and first-pass sound effects.
+**Gradients** is a motion-controlled game for the M5Stack Core2 in which the terrain is not merely a background: its numerical gradient acts as a force on every player.
 
-## Highlights
+Tilt the device to steer toward a shrinking green target. Reach it quickly for more points and extra play time. In multiplayer, one Core2 runs the authoritative simulation while up to three additional M5Stack devices send IMU input and display the same procedurally generated landscape over ESP-NOW.
 
-- **One firmware for all devices**  
-  Upload the same `.ino` to the host and to every client.
+No external sensors, wiring, phone, router, or PC are required during play.
 
-- **Boot-time role selection**  
-  Hold **A while booting** to force/save `HOST`.  
-  Hold **B while booting** to force/save `CLIENT`.  
-  If no boot button is held, the device uses the previously saved role from NVS.
+## Features
 
-- **Deterministic no-PC pairing**  
-  Pairing is now done from the startup menu by pressing **C on the HOST and C on one CLIENT**. This avoids the accidental multi-device pairing behavior that can happen with bump-only discovery.
+- Single-player and multiplayer in one firmware
+- One host plus up to three clients
+- IMU tilt control with neutral-position calibration and dead zone
+- Long-press **A** during gameplay to recalibrate the IMU
+- Procedurally generated, smoothed scalar terrain
+- Terrain-gradient forces integrated into player physics
+- Deterministic terrain synchronization from a shared random seed
+- Host-authoritative ESP-NOW simulation at approximately 40 network updates per second
+- Direct on-device role selection and host/client pairing
+- Persistent roles and paired MAC addresses in NVS
+- Automatic disconnect detection and reconnection
+- Sound, vibration, battery status, and USB-aware idle power management
+- Time-dependent target value from 1000 down to 100 points
+- Target size visually indicates its current bonus value
+- Post-game score-history graph
+- In-app **Play Again** and **Main Menu** flow
+- Persistent single-player high score
 
-- **Persistent host client list**  
-  The host stores paired clients in NVS. Stored clients are kept across normal reboots.
-
-- **Explicit host client reset**  
-  Hold **C while booting a HOST** to clear the stored host client list. This is ignored on CLIENT devices.
-
-- **True multiplayer first pass**  
-  Supports one host and up to three clients:
-
-  | Player | Role | Color |
-  |---|---|---|
-  | H | Host | Red |
-  | C1 | Client 1 | Blue |
-  | C2 | Client 2 | Cyan |
-  | C3 | Client 3 | Magenta |
-
-  The host runs the authoritative game simulation and sends the synchronized game state to all active paired clients.
-
-- **Color-coded multiplayer HUD**  
-  The top bar shows the local player score first, drawn in that player's color. The second displayed score is the top competitor, or the second-place player when the local player is currently leading.
-
-- **Buffered terrain startup screen**  
-  The Lissajous menu graphics were replaced with a static random terrain background rendered into an `M5Canvas` buffer to avoid flicker. Startup text uses a black foreground with a white offset highlight for readability.
-
-- **Battery display and auto power-off**  
-  The menu and post-game screen show battery status. If the device remains in the menu or post-game screen for 60 seconds, it powers off automatically.
-
-- **Sound effects**  
-  First-pass SFX are included for boot, game start, successful pairing, score events, game over, and auto power-off. Default SFX volume is 10%.
-
-- **Serial configuration remains available**  
-  Serial commands are still available for diagnostics, role configuration, pairing fallback, client-slot inspection, volume control, and reset.
-
-## Target hardware
-
-The sketch is configured for 320 × 240 px M5Stack devices, especially:
+## Primary hardware
 
 - M5Stack Core2
-- M5Stack CoreS3
-- M5Stack Core / Fire style devices with button input, with possible display/input adjustments
 
-Other M5 devices may require display-size, input, power-management, or speaker adaptation.
+The sketch uses M5Unified and a fixed 320 × 240 layout. It also contains input and display support intended for other 320 × 240 M5Stack devices, including CoreS3 and classic Core/Fire models, but the contest release should be considered primarily a Core2 build unless those boards are separately tested.
 
-## Dependencies
+## How the game works
 
-Arduino libraries / platform support:
+A 33 × 25 array of random control values is repeatedly smoothed to form a continuous-looking scalar field. The program calculates horizontal and vertical finite differences from this field and uses them as local terrain forces.
 
+The player's acceleration therefore combines:
+
+1. IMU tilt input
+2. Local terrain-gradient force
+3. Velocity damping
+4. Boundary or collision response
+
+Capturing the green diamond adds its current value to the player's score and extends the game by two seconds. The value starts at 1000 points and decreases to a minimum of 100 while the target remains uncaptured.
+
+```mermaid
+flowchart LR
+    A[Random control values] --> B[Repeated smoothing]
+    B --> C[Scalar terrain field]
+    C --> D[X and Y finite differences]
+    D --> E[Local gradient force]
+    F[Core2 IMU tilt] --> G[Player physics]
+    E --> G
+    G --> H[Position, score and target capture]
+```
+
+## Multiplayer architecture
+
+The host generates the random terrain seed and runs all gameplay physics, collision handling, target captures, scoring, and timing. Each client sends only its local calibrated tilt input. The host sends a recipient-specific synchronized game state back to every active client.
+
+```mermaid
+flowchart LR
+    C1[Client 1 IMU] -->|InputPacket| H[Host authoritative simulation]
+    C2[Client 2 IMU] -->|InputPacket| H
+    C3[Client 3 IMU] -->|InputPacket| H
+    HI[Host IMU] --> H
+    H -->|GameState| C1
+    H -->|GameState| C2
+    H -->|GameState| C3
+```
+
+A paired client is considered connected only while input packets arrive within the connection timeout. Timed-out clients receive neutral input on the host and automatically rejoin when communication resumes. Clients display a **CONNECTION LOST / RECONNECTING** overlay when host state packets stop.
+
+## Requirements
+
+### Hardware
+
+- 1 to 4 M5Stack Core2 devices
+- USB-C cable for programming each device
+
+### Software
+
+- Arduino IDE
+- ESP32/M5Stack board support
 - `M5Unified`
-- `M5GFX`, normally installed with M5Unified
-- ESP32 Arduino / M5Stack board package
-- ESP-NOW support from the ESP32 core
+- `M5GFX` (normally installed with M5Unified)
 
-Main includes used by the sketch:
+The sketch also uses libraries supplied by the ESP32 Arduino platform:
+
+- `Preferences`
+- `WiFi`
+- `esp_now`
+- `esp_system`
+- `esp_wifi`
+- `esp_idf_version`
+
+## Installation
+
+Arduino requires the sketch folder and main `.ino` filename to match.
+
+1. Create a folder named:
+
+   ```text
+   Gradients_SP_MP_1_17
+   ```
+
+2. Place this file inside it:
+
+   ```text
+   Gradients_SP_MP_1_17/Gradients_SP_MP_1_17.ino
+   ```
+
+3. Open the sketch in Arduino IDE.
+4. Select the M5Stack Core2 board and the correct serial port.
+5. Install or update M5Unified if required.
+6. Compile and upload the same firmware to every device.
+
+The compile-time setting below is only a fallback for a device with no saved role:
 
 ```cpp
-#include <M5Unified.h>
-#include <Preferences.h>
-#include <WiFi.h>
-#include <esp_now.h>
-#include <esp_system.h>
-#include <esp_idf_version.h>
+#define DEFAULT_IS_HOST_DEVICE 0
 ```
 
-## Uploading
+The active multiplayer role is normally loaded from NVS and can be changed during boot or through the Serial Monitor.
 
-Upload the same firmware file to all devices:
+## Controls
 
-```text
-Gradients_SP_MP_1_1.ino
-```
+### Startup and menu
 
-The compile-time role define is only a fallback:
+| Action | Core2 control |
+|---|---|
+| Start single-player | **A** or touch left half |
+| Start multiplayer | **B** or touch right half |
+| Pair host and client | **C** / bottom-right virtual button |
+| Save HOST role | Hold **A** during boot |
+| Save CLIENT role | Hold **B** during boot |
+| Clear stored host client slots | Hold **C** while booting a saved HOST |
 
-```cpp
-#define DEFAULT_IS_HOST_DEVICE 1
-```
+Single-player can start from either a saved HOST or CLIENT device without changing its stored multiplayer role.
 
-The active role is loaded from NVS at runtime unless changed during boot or through Serial commands.
+### Gameplay
 
-## Normal no-PC setup
+| Action | Control |
+|---|---|
+| Move | Tilt the device |
+| Recalibrate neutral position | Hold **A** for approximately 1.2 seconds |
 
-### 1. Choose the host
+### Post-game
 
-Power or reset the intended host while holding **A**.
+| Action | Control |
+|---|---|
+| Play again | **A** or touch left half |
+| Return to main menu | **B** or touch right half |
 
-Result:
+## No-PC multiplayer setup
 
-```text
-HOST role is saved in NVS.
-```
+### 1. Set one device as host
 
-### 2. Choose each client
+Restart the selected host while holding **A**. The HOST role is saved in NVS.
 
-Power or reset each client while holding **B**.
+### 2. Set each other device as a client
 
-Result:
+Restart each client while holding **B**. The CLIENT role is saved in NVS.
 
-```text
-CLIENT role is saved in NVS.
-```
+### 3. Pair one client at a time
 
-### 3. Pair each client with the host
+From the startup menu, press **C** on the host and **C** on one client at approximately the same time.
 
-On the startup screen, press **C on the HOST and C on one CLIENT**.
-
-Repeat once for each client:
-
-```text
-HOST + Client 1 -> C1
-HOST + Client 2 -> C2
-HOST + Client 3 -> C3
-```
-
-The host accepts only one new client per C-button pairing window. This keeps pairing deterministic when several devices are powered.
+Repeat for up to three clients. The host accepts only one new client during each pairing window, which keeps the process deterministic when several devices are powered.
 
 ### 4. Start multiplayer
 
-Press **B: Multi** on the host and on the clients.
+Select **B: Multi** on the host and all paired clients.
 
-Paired clients become active only after the host receives their first input packet, so powered-off paired clients should not appear as ghost players.
+The clients wait for the first host state packet, recreate the terrain from the shared seed, and then join with their assigned player IDs.
 
-## Clearing host clients
+## Player identities
 
-To clear all stored client slots on the host:
+| Player | Role | Color |
+|---|---|---|
+| H | Host | Red |
+| C1 | Client 1 | Blue |
+| C2 | Client 2 | Cyan |
+| C3 | Client 3 | Magenta |
 
-1. Make sure the device is already saved as HOST.
-2. Hold **C while booting**.
-3. Release the boot button when prompted.
-4. Pair clients again from the startup menu.
+The local player's score is always shown first in the HUD. The second value shows the leading competitor, or the runner-up when the local player is leading. On the host, a timed-out client is shown as `LOST C1`, `LOST C2`, or `LOST C3`.
 
-Normal host boot keeps the client list.
+## Serial configuration
 
-## Menu controls
-
-Startup/menu screen:
-
-```text
-A: Singleplayer
-B: Multi
-C: Pair HOST + CLIENT
-```
-
-Boot-time controls:
-
-```text
-Hold A during boot: save HOST role
-Hold B during boot: save CLIENT role
-Hold C during HOST boot: clear stored HOST client slots
-```
-
-## Serial monitor setup
-
-Open Serial Monitor at:
-
-```text
-115200 baud
-Newline enabled
-```
+Open Serial Monitor at **115200 baud** with newline enabled.
 
 Useful commands:
 
 ```text
 HELP
 CFG?
+CONFIG?
 MAC?
 ROLE?
 ROLE HOST
 ROLE CLIENT
 PEER 84:1F:E8:85:30:48
 PEER 841FE8853048
-PAIR HOST <client-mac>
-PAIR CLIENT <host-mac>
+PAIR HOST <client-local-mac>
+PAIR CLIENT <host-local-mac>
 PAIR?
-CLIENTS?
+PAIR HELP
 RESETCFG
 REBOOT
+RESTART
 VOL?
 VOL 10
+VOLUME?
+VOLUME 10
 SFX?
 SFX ON
 SFX OFF
+SOUND?
+SOUND ON
+SOUND OFF
 ```
 
-## Pairing notes
+On a host, `CFG?` and `MAC?` show all three client slots. Serial pairing is intended as a fallback and diagnostic method; direct C-button pairing is the normal workflow.
 
-The preferred workflow is now C-button pairing. Serial pairing remains as a fallback/debug path:
+Sound enable and volume are runtime settings in v1.17 and return to their defaults after reboot.
 
-```text
-PAIR HOST <client-local-mac>
-PAIR CLIENT <host-local-mac>
-```
+## Power behavior
 
-The MAC used in a `PAIR` command is always the other device's local MAC address.
+Battery status is displayed in the startup menu. On battery power, the menu and post-game screen shut the device down after 60 seconds of inactivity.
 
-## Gameplay flow
+When USB power is present, the idle timer is continuously reset so the device does not unexpectedly power off during development, demonstration, or charging.
 
-### Host device
+## Repository files
 
-- Can start singleplayer or multiplayer.
-- Generates the terrain seed.
-- Runs the authoritative game simulation.
-- Stores up to three paired client MAC addresses.
-- Receives client input packets.
-- Sends synchronized `GameState` packets to active clients.
-
-### Client device
-
-- Starts multiplayer.
-- Waits for the first host `GameState`.
-- Recreates the terrain using the host-provided seed.
-- Sends local IMU tilt input to the host.
-- Stores the host MAC address in NVS.
-
-## Sound FX
-
-Default sound volume is 10%.
-
-Serial commands:
-
-```text
-VOL?       show current volume
-VOL 10     set volume to 10%
-VOL 0      mute by volume
-VOL 100    maximum volume
-SFX?       show SFX state
-SFX ON     enable SFX
-SFX OFF    disable SFX
-```
-
-SFX volume and enable state are not currently saved to NVS; they reset after reboot.
-
-## Battery and auto power-off
-
-The menu and post-game screen display battery status. If the device remains inactive for 60 seconds in either screen, it powers off automatically.
-
-On USB power, some M5 devices may appear to restart or remain externally powered after shutdown. On battery, the device should power off normally.
-
-## Notes and limitations
-
-- ESP-NOW encryption is currently disabled.
-- The current maximum multiplayer configuration is one host plus three clients.
-- Host client slots are persistent and must be cleared with HOST boot + C if you want a clean pairing set.
-- Clients store only one host MAC address.
-- C-button pairing uses ESP-NOW broadcast but only accepts packets while the local C-pairing window is active.
-- The current sketch assumes a 320 × 240 display layout.
-- Sound effects are intentionally simple first-pass tones.
-- SD logging, game modes, score graphs, and advanced post-game analysis are planned for later versions.
-
-## Release files
-
-- `Gradients_SP_MP_1_1.ino` — firmware sketch
-- `README.md` — repository overview and setup instructions
+- `Gradients_SP_MP_1_17.ino` — contest-release firmware
+- `README.md` — setup, gameplay, and architecture documentation
 - `CHANGELOG.md` — release history
-- `RELEASE_NOTES_v1.1.md` — GitHub release text
+- `RELEASE_NOTES_v1.17.md` — GitHub release text
+- `LICENSE` — GNU General Public License v3
+
+## Known limitations
+
+- The maximum session size is four players: one host and three clients.
+- ESP-NOW encryption is not enabled.
+- Clients store one host MAC address.
+- The UI is fixed at 320 × 240 pixels.
+- Multiplayer replay and menu selections are made independently on each device; the host remains authoritative once a new match begins.
+- Exact library and board-package versions should be recorded from the final tested build environment before publishing a reproducible binary release.
 
 ## License
 
-GPL-3.0. See `LICENSE`.
+Gradients is released under the GNU General Public License v3. See `LICENSE`.
