@@ -3,7 +3,7 @@
 **Gradients** is a motion-controlled game for the M5Stack Core2 in which the terrain is not merely a background: its numerical gradient acts as a force on every player.
 
 <p align="center">
-  <img src="docs/images/gradients_multiplayer.jpg"
+  <img src="gradients_multiplayer.jpg"
        alt="Gradients running on multiple M5Stack Core2 devices"
        width="750">
 </p>
