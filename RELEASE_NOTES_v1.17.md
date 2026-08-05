@@ -1,4 +1,4 @@
-# Gradients v1.17 — Contest Release Candidate
+# Gradients v1.17 — Contest Release
 
 Gradients v1.17 is the polished M5Stack Core2 build prepared for the M5Stack Global Innovation Contest 2026.
 
