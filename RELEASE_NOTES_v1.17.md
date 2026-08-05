@@ -50,14 +50,4 @@ Gradients_SP_MP_1_17/Gradients_SP_MP_1_17.ino
 
 Saved HOST/CLIENT roles and paired MAC addresses remain in the existing `gradcfg` NVS namespace. Use `RESETCFG` in Serial Monitor only when a clean configuration is desired.
 
-## Verification status
 
-The source has been checked for:
-
-- consistent v1.17 naming
-- merge-conflict markers
-- TODO/FIXME markers
-- balanced braces and parentheses using a lexical static check
-- stale v1.1/v1.13 release references in the prepared documentation
-
-A complete compile and physical multi-device test must still be performed in the author's final Arduino/M5Stack environment before tagging the release.
