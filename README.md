@@ -2,6 +2,12 @@
 
 **Gradients** is a motion-controlled game for the M5Stack Core2 in which the terrain is not merely a background: its numerical gradient acts as a force on every player.
 
+<p align="center">
+  <img src="docs/images/gradients_multiplayer.jpg"
+       alt="Gradients running on multiple M5Stack Core2 devices"
+       width="750">
+</p>
+
 Tilt the device to steer toward a shrinking green target. Reach it quickly for more points and extra play time. In multiplayer, one Core2 runs the authoritative simulation while up to three additional M5Stack devices send IMU input and display the same procedurally generated landscape over ESP-NOW.
 
 No external sensors, wiring, phone, router, or PC are required during play.
